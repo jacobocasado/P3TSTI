@@ -1,4 +1,4 @@
-(define (domain ejercicio_1)
+(define (domain ejercicio_2)
 	(:requirements :strips :adl :fluents)
 
 	(:types
@@ -23,6 +23,8 @@
 		VCE - tipoUnidad
 		CentroDeMando - tipoEdificio
 		Barracones - tipoEdificio
+		; Para este ejercicio, incluimos el extractor
+		Extractor - tipoEdificio
 
 		Mineral - tipoRecurso
 		Gas - tipoRecurso
@@ -44,6 +46,9 @@
 
 		; Saber si se está extrayendo un recurso.
 		(estaExtrayendoRecurso ?rec - recurso)
+
+		; Saber qué recurso necesita cada edificio.
+		(necesitaRecurso ?x - tipoEdificio ?rec - tipoRecurso)
 
 		; Comprobar o asignar que una unidad está libre
 		(unidadLibre ?uni - unidad)
@@ -77,7 +82,7 @@
 
     ; Acción de asignar una unidad a una localización, para extraer un recurso en concreto, que también se especifica.
 	(:action asignar
-	  :parameters (?x - unidad ?rec - recurso ?loc - localizacion)
+	  :parameters (?x - unidad ?rec - recurso ?loc - localizacion ?edi - edificio)
 	  :precondition
 	  		(and
 				; La unidad debe de estar previamente en la localización
@@ -88,6 +93,9 @@
 
 				; La unidad debe de estar libre.
 				(unidadLibre ?x)
+
+				; Podemos extraer si no es de Gas, porque si es de Gas, necesitamos un Extractor en la localización.
+                (imply (asignarNodoRecursoLocalizacion Gas ?loc) (and (entidadEnLocalizacion ?edi ?loc) (esEdificio ?edi Extractor) ) )
 			)
 	  :effect
 	  		(and
@@ -98,6 +106,35 @@
 
 			)
 	)
+
+	(:action construir
+    		; acción para construir un edificio - para este ejercicio solo se necesita un recurso
+    	  :parameters (?unidad - unidad ?x - localizacion ?edificio - edificio ?recurso - recurso)
+    	  :precondition
+    	  		(and
+    				; tiene que ser una unidad libre
+    				(unidadLibre ?unidad)
+
+    				; tiene que estar en la localizacion a construir el edificio
+    				(entidadEnLocalizacion ?unidad ?x)
+
+    				; existe un tipo de edificio que es el que vamos a construir
+    				; necesita el recurso dado, y ese recurso se está extrayendo
+    				(exists (?t - tipoEdificio)
+    					(and
+    						(esEdificio ?edificio ?t)
+    						(necesitaRecurso ?t ?recurso)
+    						(estaExtrayendoRecurso ?recurso)
+    					)
+    				)
+    			)
+    	  :effect
+    	  		(and
+    				; como efecto, se construye el edificio
+    				(entidadEnLocalizacion ?edificio ?x)
+
+    			)
+    	)
 
 
 )
