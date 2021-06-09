@@ -82,7 +82,7 @@
 
     ; Acción de asignar una unidad a una localización, para extraer un recurso en concreto, que también se especifica.
 	(:action asignar
-	  :parameters (?x - unidad ?rec - recurso ?loc - localizacion ?edi - edificio)
+	  :parameters (?x - unidad ?rec - recurso ?loc - localizacion)
 	  :precondition
 	  		(and
 				; La unidad debe de estar previamente en la localización
@@ -94,8 +94,21 @@
 				; La unidad debe de estar libre.
 				(unidadLibre ?x)
 
-				; Podemos extraer si no es de Gas, porque si es de Gas, necesitamos un Extractor en la localización.
-                (imply (asignarNodoRecursoLocalizacion Gas ?loc) (and (entidadEnLocalizacion ?edi ?loc) (esEdificio ?edi Extractor) ) )
+				; PARA COMPROBAR QUE SI NO ES GAS, PODEMOS EXTRAER Y SI ES GAS TENEMOS QUE TENER UN EXTRACTOR EN LA LOCALIZACION.
+                (or
+                     (and ; Si es gas debe haber un extractor en esa localización
+                        (asignarNodoRecursoLocalizacion Gas ?loc)
+                        (exists (?e - edificio) ; existe un extractor en esa localización
+                          (and
+                             (esEdificio ?e Extractor)
+                              (entidadEnLocalizacion ?e ?loc)
+                          )
+                     )
+                     )
+
+                     ; Si es mineral no hace falta nada
+                      (asignarNodoRecursoLocalizacion Mineral ?loc)
+                )
 			)
 	  :effect
 	  		(and

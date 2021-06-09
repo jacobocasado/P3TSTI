@@ -1,3 +1,4 @@
+; Jacobo Casado de Gracia. Práctica 3 TSI
 (define (domain ejercicio_3)
 	(:requirements :strips :adl :fluents)
 
@@ -15,6 +16,7 @@
 		tipoEdificio - edificio
 		tipoUnidad - unidad
 		tipoRecurso - recurso
+
 	)
 
 
@@ -23,19 +25,28 @@
 		VCE - tipoUnidad
 		CentroDeMando - tipoEdificio
 		Barracones - tipoEdificio
+
 		; Para este ejercicio, incluimos el extractor
 		Extractor - tipoEdificio
 
-		Mineral - tipoRecurso
-		Gas - tipoRecurso
+        ; Para este ejercicio, acumulamos dos nuevos tipos de recursos.
+        Mineral - tipoRecurso
+        Gas - tipoRecurso
+
+		; Ahora, con el ejercicio 4, añadimos dos constantes nuevas, para las dos nuevas tropas.
+		Marine - tipoUnidad
+		Segador - tipoUnidad
 
 	)
 
 	(:predicates
 		;predicados:
 
-		; Comprobar si una entidad (edificio o unidad está en una localización).
-		(entidadEnLocalizacion ?obj - entidad ?x - localizacion)
+		; Comprobar o asignar que una unidad está libre
+		(unidadLibre ?uni - unidad)
+
+		; Saber si se está extrayendo un recurso.
+		(estaExtrayendoRecurso ?rec - recurso)
 
 		; Comprobar que una ubicación x1 está conectada con otra x2 (no es paralela así que, en nuestro modelo, para conectar
 		; una con otra, debemos declarar este predicado dos veces, con los parámetros al revés.
@@ -44,18 +55,17 @@
 		; Para asignar o comprobar si en una localización hay un recurso.
 		(asignarNodoRecursoLocalizacion ?r - recurso ?x - localizacion)
 
-		; Saber si se está extrayendo un recurso.
-		(estaExtrayendoRecurso ?rec - recurso)
-
-		; Saber qué recurso necesita cada edificio.
-		(necesitaRecurso ?x - tipoEdificio ?rec - tipoRecurso)
-
-		; Comprobar o asignar que una unidad está libre
-		(unidadLibre ?uni - unidad)
+		; Comprobar si una entidad (edificio o unidad está en una localización).
+		(entidadEnLocalizacion ?obj - entidad ?x - localizacion)
 
 		; Asignar o comprobar que una unidad es de cierto tipo.
 		(esEdificio ?edif - edificio ?tipoEdif - tipoEdificio)
 		(esUnidad ?unid - unidad ?tUnid - tipoUnidad)
+
+		; ACTUALIZACIÓN PRÁCTICA 4 - CAMBIAMOS EDIFICIO POR ENTIDAD, YA QUE AHORA LAS TROPAS NECESITAN RECURSOS
+		; AHORA TANTO EDIFICIO COMO TROPA FUNCIONA, YA QUE AMBOS SON ENTIDADES.
+        (necesitaRecurso ?x - entidad ?rec - tipoRecurso)
+
 	)
 
 	; Acción de navegar. Recibe de parámetro la unidad, dos localizaciones (actual y nueva, a moverse)
@@ -94,8 +104,12 @@
 				; La unidad debe de estar libre.
 				(unidadLibre ?x)
 
-				; PARA COMPROBAR QUE SI NO ES GAS, PODEMOS EXTRAER Y SI ES GAS TENEMOS QUE TENER UN EXTRACTOR EN LA LOCALIZACION.
-                (or
+				; SÓLO LOS VCE PUEDEN EXTRAER UN RECURSO EN CONCRETO. NO HABÍA CAIDO EN ESTO.
+                (esUnidad ?x VCE)
+
+
+                ; PARA COMPROBAR QUE SI NO ES GAS, PODEMOS EXTRAER Y SI ES GAS TENEMOS QUE TENER UN EXTRACTOR EN LA LOCALIZACION.
+				(or
                      (and ; Si es gas debe haber un extractor en esa localización
                         (asignarNodoRecursoLocalizacion Gas ?loc)
                         (exists (?e - edificio) ; existe un extractor en esa localización
@@ -109,7 +123,7 @@
                      ; Si es mineral no hace falta nada
                       (asignarNodoRecursoLocalizacion Mineral ?loc)
                 )
-			)
+            )
 	  :effect
 	  		(and
 				; La unidad deja de estar libre (pasa a estar extrayendo)
@@ -135,6 +149,18 @@
     				; no hay otro edificio en esa localizacion
                     (not (exists (?edif - edificio) (entidadEnLocalizacion ?edif ?x) ) )
 
+                    ; Al igual que antes, sólo los VCE pueden construir.
+                    (esUnidad ?unidad VCE)
+
+                    ; ESTO NO LO HE PUESTO EN EL EJERCICIO 3 PORQUE EN EL EJERCICIO 3 NO OCURRE UN CASO
+                    ; DONDE SE PUEDA CONSTRUIR MÁS DE UNA COSA IGUAL, PERO, EN ESTE SÍ ES IMPORTANTE.
+                    ; SI NO, ME CONSTRUYE DOS BARRACONES.
+
+                   (forall (?l - localizacion)
+                        (not(entidadEnLocalizacion ?edificio ?l))
+                   )
+
+
                     ; para todos los posibles recursos
     				(forall (?r - tipoRecurso)
     					; existe un tipo de edificio
@@ -155,6 +181,42 @@
 
     			)
     	)
+    	; Modificación del ejercicio 4. Añadimos la acción de reclutar, una unidad en una localización concreta donde
+    	; hay un edificio en concreto.
+    	(:action reclutar
+                 :parameters (?e - edificio ?u - unidad ?l - localizacion)
+                 :precondition
+
+                     ; NECESARIO PARA EL EJERCICIO 4. QUE, PARA RECLUTAR UNA UNIDAD, NO EXISTA PREVIAMENTE.
+                     (and
+
+                     (forall (?loc - localizacion)
+                        (not(entidadEnLocalizacion ?u ?loc))
+                     )
+
+
+                     (or ; Dependiendo del tipo de edificio, vamos a poder reclutar una cosa u otra.
+                         (and ; Centro de Mando = VCE
+                             (entidadEnLocalizacion ?e ?l)
+                            (esEdificio ?e CentroDeMando)
+                            (esUnidad ?u VCE)
+                        )
+                        (and ; Barracon = Segadores y Marines.
+                             (entidadEnLocalizacion ?e ?l)
+                            (esEdificio ?e Barracones)
+                            (or
+                                (esUnidad ?u Segador)
+                                (esUnidad ?u Marine)
+                            )
+                        )
+                    )
+                 )
+                 :effect
+                     (and
+                        (entidadEnLocalizacion ?u ?l)
+                        (unidadLibre ?u)
+                    )
+             )
 
 
 )
